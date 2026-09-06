@@ -19,15 +19,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.info(
-    "📷 Testei aqui e a câmera e o GPS conseguem passar pelo quadro do Streamlit "
-    "(a permissão do navegador não bloqueia por padrão). O que eu não consigo testar sozinho é o "
-    "pop-up real de \"permitir câmera/localização\" que aparece pro usuário — isso só confirma "
-    "testando no celular de verdade. Se der problema na hora de usar, o link direto do "
-    "Netlify/GitHub Pages é o caminho mais seguro pro campo.",
-    icon="ℹ️",
-)
-
 # Procura qualquer arquivo .html na mesma pasta, em vez de exigir um nome exato.
 # Isso evita quebrar quando o navegador renomeia o arquivo (tipo "app_campo[1].html")
 # na hora de baixar/extrair de novo um zip com o mesmo nome.
