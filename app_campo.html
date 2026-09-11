@@ -332,8 +332,12 @@ table.relTable td{padding:6px 8px;border-bottom:1px solid var(--line);white-spac
     </div>
     <div class="homeTools">
       <button class="btn btnGhost" id="homeExport">↓ Resultado da recorrida</button>
+      <button class="btn btnGold" id="btnExportarTudo">↓ Exportar Tudo</button>
+      <button class="btn btnGhost" id="btnImportarTudo">↑ Importar Tudo</button>
+      <input type="file" id="importTudoFile" accept=".json" style="display:none;">
       <button class="btn btnDanger" id="homeTrocar">Trocar fazenda</button>
     </div>
+    <div id="tudoImportMsg" style="font-size:11.5px;margin:6px 0 0;"></div>
     <div class="footerInfo">Nesta etapa nenhuma regra da Recorrida foi alterada.</div>
   </section>
 
@@ -384,14 +388,10 @@ table.relTable td{padding:6px 8px;border-bottom:1px solid var(--line);white-spac
           <p style="margin:4px 0 0;">Resumo para conferir a estrutura antes de avançarmos para movimentação e trato.</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-          <button type="button" class="qrLinkDiscreto" id="btnExportarConfig">↓ exportar praças e produtos</button>
-          <button type="button" class="qrLinkDiscreto" id="btnImportarConfig">↑ importar de outro celular</button>
-          <input type="file" id="importConfigFile" accept=".json" style="display:none;">
           <button type="button" class="qrLinkDiscreto" id="btnImprimirQRs">🖨 imprimir todos os QR</button>
           <button type="button" class="qrLinkDiscreto" id="btnTrocarSenha">🔒 trocar senha</button>
         </div>
       </div>
-      <div id="configImportMsg" style="font-size:11.5px;margin:0 0 8px;"></div>
       <div id="pracasSalvas" class="pracaSaved"></div>
     </div>
   </section>
@@ -602,18 +602,7 @@ table.relTable td{padding:6px 8px;border-bottom:1px solid var(--line);white-spac
         </div>
       </div>
       <div class="relKpis" id="relKpis"></div>
-    </div>
-
-    <div class="relPanel">
-      <h3 style="margin-bottom:12px;">Juntar relatório de outro celular</h3>
-      <p style="margin:0 0 12px;color:var(--muted);font-size:12.5px;">Cada celular só vê o que ele mesmo registrou. Pra ver tudo junto (os 4 celulares da fazenda), exporte daqui de cada um e importe todos num só.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btnGold" id="relExportar" type="button">↓ Exportar meus registros</button>
-        <button class="btn btnGhost" id="relImportar" type="button">↑ Importar de outro celular</button>
-        <input type="file" id="relImportFile" accept=".json" style="display:none;">
-        <button class="btn btnGhost" id="relLimparImportados" type="button">Limpar importados</button>
-      </div>
-      <div id="relImportMsg" style="margin-top:10px;font-size:12.5px;"></div>
+      <p style="margin:8px 0 0;color:var(--muted);font-size:12px;">Pra juntar o que foi registrado em vários celulares, use "↓ Exportar Tudo" / "↑ Importar Tudo" na tela inicial.</p>
     </div>
 
     <div class="relPanel">
@@ -814,9 +803,6 @@ function imprimirQRs(somenteId){
   window.print();
 }
 $('btnImprimirQRs').onclick=function(){imprimirQRs(null);};
-$('btnExportarConfig').onclick=exportarConfiguracao;
-$('btnImportarConfig').onclick=function(){$('importConfigFile').click();};
-$('importConfigFile').addEventListener('change',importarConfiguracao);
 $('btnTrocarSenha').onclick=trocarSenhaConfig;
 $('btnImport').onclick=function(){$('file').click()};
 $('file').onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(!d||!Array.isArray(d.piquetes)||!Array.isArray(d.planos))throw new Error('Arquivo não parece ser uma fazenda exportada pelo Planeja UA/ha.');source=d;rec=buildRec(d);idx=0;save();showModuleHome()}catch(ex){alert('Não foi possível importar: '+ex.message)}};r.readAsText(f);e.target.value=''};
@@ -1486,32 +1472,11 @@ function openConsumoScreen(){
 }
 
 /* Relatorios */
-var REL_IMPORT_KEY='app_campo_relatorio_importado';
-function getRelatorioImportado(){
-  try{
-    var raw=localStorage.getItem(REL_IMPORT_KEY);
-    if(raw)return JSON.parse(raw);
-  }catch(e){}
-  return {fornecimentos:[],movimentos:[]};
-}
-function salvarRelatorioImportado(obj){
-  try{localStorage.setItem(REL_IMPORT_KEY,JSON.stringify(obj));}catch(e){}
-}
 function todosFornecimentos(){
-  var extra=getRelatorioImportado();
-  var vistos={},out=[];
-  (rec.fornecimentos||[]).concat(extra.fornecimentos||[]).forEach(function(f){
-    if(!vistos[f.id]){vistos[f.id]=1;out.push(f);}
-  });
-  return out.sort(function(a,b){return new Date(b.dataHora)-new Date(a.dataHora);});
+  return (rec.fornecimentos||[]).slice().sort(function(a,b){return new Date(b.dataHora)-new Date(a.dataHora);});
 }
 function todosMovimentos(){
-  var extra=getRelatorioImportado();
-  var vistos={},out=[];
-  (rec.movimentos||[]).concat(extra.movimentos||[]).forEach(function(m){
-    if(!vistos[m.id]){vistos[m.id]=1;out.push(m);}
-  });
-  return out.sort(function(a,b){return new Date(b.dataHora)-new Date(a.dataHora);});
+  return (rec.movimentos||[]).slice().sort(function(a,b){return new Date(b.dataHora)-new Date(a.dataHora);});
 }
 function preencherRelFiltros(){
   var forns=todosFornecimentos();
@@ -1586,32 +1551,25 @@ function openRelatoriosScreen(){
   $('farmTop').textContent=rec.fazendaNome||'Fazenda';
   renderRelatoriosScreen();
 }
-function exportarMeuRelatorio(){
-  var payload={type:'app-campo-relatorio',version:1,fazendaNome:rec.fazendaNome,quemExportou:getNomeUsuario(),exportadoEm:new Date().toISOString(),
+function exportarTudo(){
+  cochoState();
+  var payload={type:'app-campo-tudo',version:1,fazendaNome:rec.fazendaNome,exportadoPor:getNomeUsuario(),exportadoEm:new Date().toISOString(),
+    cochos:rec.cochos||[],piqueteCocho:rec.piqueteCocho||{},produtos:rec.produtos||[],proximoNumeroPraca:rec.proximoNumeroPraca||1,configSenha:getSenhaConfig(),
     fornecimentos:rec.fornecimentos||[],movimentos:rec.movimentos||[]};
   var txt=JSON.stringify(payload,null,2),blob=new Blob([txt],{type:'application/json'}),url=URL.createObjectURL(blob);
   var a=document.createElement('a'),fn=(rec.fazendaNome||'fazenda').replace(/[^a-zA-Z0-9]+/g,'_');
-  a.href=url;a.download='relatorio_'+fn+'_'+(getNomeUsuario()||'celular').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.json';
+  a.href=url;a.download='app_campo_tudo_'+fn+'_'+(getNomeUsuario()||'celular').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.json';
   document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
 }
-function exportarConfiguracao(){
-  cochoState();
-  var payload={type:'app-campo-config',version:1,fazendaNome:rec.fazendaNome,exportadoPor:getNomeUsuario(),exportadoEm:new Date().toISOString(),
-    cochos:rec.cochos||[],piqueteCocho:rec.piqueteCocho||{},produtos:rec.produtos||[],proximoNumeroPraca:rec.proximoNumeroPraca||1,configSenha:getSenhaConfig()};
-  var txt=JSON.stringify(payload,null,2),blob=new Blob([txt],{type:'application/json'}),url=URL.createObjectURL(blob);
-  var a=document.createElement('a'),fn=(rec.fazendaNome||'fazenda').replace(/[^a-zA-Z0-9]+/g,'_');
-  a.href=url;a.download='config_pracas_produtos_'+fn+'_'+new Date().toISOString().slice(0,10)+'.json';
-  document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
-}
-function importarConfiguracao(evt){
+function importarTudo(evt){
   var file=evt.target.files[0];if(!file)return;
   var reader=new FileReader();
   reader.onload=function(){
     try{
       var d=JSON.parse(reader.result);
-      if(!d||d.type!=='app-campo-config')throw new Error('esse arquivo não parece ser uma configuração de praças/produtos exportada pelo App Campo.');
+      if(!d||d.type!=='app-campo-tudo')throw new Error('esse arquivo não parece ser um export completo do App Campo.');
       var qtdPracas=(d.cochos||[]).length,qtdProdutos=(d.produtos||[]).length;
-      var msg='Isso vai SUBSTITUIR suas praças e produtos atuais pelos deste arquivo ('+qtdPracas+' praça(s), '+qtdProdutos+' produto(s), exportado por '+(d.exportadoPor||'?')+'). Abastecimentos e movimentações já registrados aqui continuam guardados, mas se apontarem pra uma praça que não existe mais neste arquivo, podem ficar sem praça associada. Continuar?';
+      var msg='Isso vai SUBSTITUIR suas praças, produtos e senha atuais pelos deste arquivo ('+qtdPracas+' praça(s), '+qtdProdutos+' produto(s), exportado por '+(d.exportadoPor||'?')+'), e vai SOMAR os abastecimentos e movimentações desse arquivo aos que você já tem aqui, sem duplicar. Continuar?';
       if(!confirm(msg)){evt.target.value='';return;}
       cochoState();
       rec.cochos=d.cochos||[];
@@ -1619,34 +1577,18 @@ function importarConfiguracao(evt){
       rec.produtos=d.produtos||[];
       rec.proximoNumeroPraca=d.proximoNumeroPraca||1;
       if(d.configSenha)rec.configSenha=d.configSenha;
+      if(!Array.isArray(rec.fornecimentos))rec.fornecimentos=[];
+      if(!Array.isArray(rec.movimentos))rec.movimentos=[];
+      var idsForn={};rec.fornecimentos.forEach(function(f){idsForn[f.id]=1;});
+      var novosForn=0;
+      (d.fornecimentos||[]).forEach(function(f){if(!idsForn[f.id]){rec.fornecimentos.push(f);novosForn++;}});
+      var idsMov={};rec.movimentos.forEach(function(m){idsMov[m.id]=1;});
+      var novosMov=0;
+      (d.movimentos||[]).forEach(function(m){if(!idsMov[m.id]){rec.movimentos.push(m);novosMov++;}});
       save();
-      $('configImportMsg').innerHTML='<span style="color:#2F6B41;">✓ Configuração importada: '+qtdPracas+' praça(s), '+qtdProdutos+' produto(s).</span>';
-      renderPracaSetup();
+      $('tudoImportMsg').innerHTML='<span style="color:#2F6B41;">✓ Importado: '+qtdPracas+' praça(s), '+qtdProdutos+' produto(s), '+novosForn+' abastecimento(s) novo(s), '+novosMov+' movimentação(ões) nova(s).</span>';
     }catch(ex){
-      $('configImportMsg').innerHTML='<span style="color:#A63D2F;">⚠ '+htmlSafe(ex.message)+'</span>';
-    }
-  };
-  reader.readAsText(file);
-  evt.target.value='';
-}
-function importarRelatorioOutroCelular(evt){
-  var file=evt.target.files[0];if(!file)return;
-  var reader=new FileReader();
-  reader.onload=function(){
-    try{
-      var d=JSON.parse(reader.result);
-      if(!d||d.type!=='app-campo-relatorio')throw new Error('esse arquivo não parece ser um relatório exportado pelo App Campo.');
-      var atual=getRelatorioImportado();
-      var novosForn=0,novosMov=0;
-      var idsForn={};atual.fornecimentos.forEach(function(f){idsForn[f.id]=1;});
-      (d.fornecimentos||[]).forEach(function(f){if(!idsForn[f.id]&&!(rec.fornecimentos||[]).some(function(x){return x.id===f.id;})){atual.fornecimentos.push(f);novosForn++;}});
-      var idsMov={};atual.movimentos.forEach(function(m){idsMov[m.id]=1;});
-      (d.movimentos||[]).forEach(function(m){if(!idsMov[m.id]&&!(rec.movimentos||[]).some(function(x){return x.id===m.id;})){atual.movimentos.push(m);novosMov++;}});
-      salvarRelatorioImportado(atual);
-      $('relImportMsg').innerHTML='<span style="color:#2F6B41;">✓ Importado de '+htmlSafe(d.quemExportou||'?')+': '+novosForn+' abastecimento(s) e '+novosMov+' movimentação(ões) novos.</span>';
-      renderRelatoriosScreen();
-    }catch(ex){
-      $('relImportMsg').innerHTML='<span style="color:#A63D2F;">⚠ '+htmlSafe(ex.message)+'</span>';
+      $('tudoImportMsg').innerHTML='<span style="color:#A63D2F;">⚠ '+htmlSafe(ex.message)+'</span>';
     }
   };
   reader.readAsText(file);
@@ -1667,6 +1609,9 @@ $('modRecorrida').onclick=showWork;
 $('modMovimentar').onclick=openMoveScreen;
 $('modTrato').onclick=openCochoScreen;
 $('homeExport').onclick=exportResult;
+$('btnExportarTudo').onclick=exportarTudo;
+$('btnImportarTudo').onclick=function(){$('importTudoFile').click();};
+$('importTudoFile').addEventListener('change',importarTudo);
 $('homeTrocar').onclick=$('btnTrocar').onclick;
 
 $('cochoBack').onclick=showModuleHome;
@@ -1734,16 +1679,6 @@ $('consProduto').addEventListener('change',renderConsumoResultado);
 $('modRelatorios').onclick=openRelatoriosScreen;
 $('relBack').onclick=showModuleHome;
 $('relTrocarNome').onclick=function(){trocarNomeUsuario();renderRelatoriosScreen();};
-$('relExportar').onclick=exportarMeuRelatorio;
-$('relImportar').onclick=function(){$('relImportFile').click();};
-$('relImportFile').addEventListener('change',importarRelatorioOutroCelular);
-$('relLimparImportados').onclick=function(){
-  if(confirm('Isso apaga os registros importados de outros celulares (não mexe nos seus próprios). Continuar?')){
-    salvarRelatorioImportado({fornecimentos:[],movimentos:[]});
-    $('relImportMsg').innerHTML='';
-    renderRelatoriosScreen();
-  }
-};
 $('relFiltroPraca').addEventListener('change',renderRelTabelaForn);
 $('relFiltroPessoa').addEventListener('change',renderRelTabelaForn);
 $('relFiltroQr').addEventListener('change',renderRelTabelaForn);
