@@ -680,9 +680,10 @@ table.relTable td{padding:6px 8px;border-bottom:1px solid var(--line);white-spac
 
   <section id="work" class="hidden">
     <div class="toolbar">
-      <div class="left"><button class="btn btnGhost" id="btnExport">↓ Resultado</button><button class="btn btnGold" id="btnPdf">▤ PDF / Imprimir</button></div>
+      <div class="left"><button class="btn btnGhost" id="btnExport">↓ Resultado</button><button class="btn btnGold" id="btnPdf">▤ PDF / Imprimir</button><button class="btn btnGhost" id="btnImportarRecorridaOutro">📥 Ver recorrida de outra pessoa</button><input type="file" id="importRecorridaOutroFile" accept=".json" style="display:none;"></div>
       <div class="right"><button class="btn btnDanger" id="btnTrocar">Trocar fazenda</button></div>
     </div>
+    <div id="recorridaOutroPanel" class="card hidden" style="margin-bottom:12px;"></div>
     <div class="card">
       <div class="paddockHead"><div><div class="eyebrow">PIQUETE</div><div class="paddockName" id="pNome">—</div></div><div class="counter" id="counter">1 / 1</div></div>
       <div class="groupNote hidden" id="groupNote"></div>
@@ -799,12 +800,37 @@ function buildRec(d){
  plans.forEach(function(pl){var ids=(pl.piquetes||[]).filter(function(x){return !x.saida}).map(function(x){return x.id}).sort();if(!ids.length)return;var k=ids.join('|');if(!groups[k])groups[k]={ids:ids,plans:[]};groups[k].plans.push(pl);ids.forEach(function(pid){pToGroup[pid]=k})});
  var items=(d.piquetes||[]).filter(function(p){return !p.saida}).map(function(p){
    var k=pToGroup[p.id],g=k?groups[k]:null,cab=0,kg=0,ua=0,areaGrupo=0,capGrupo=0,lotes=[],porLoteMap={};
-   if(g){g.plans.forEach(function(pl){var n=num(pl.cab);cab+=n;kg+=n*num(pl.peso);var nome=pl.loteName||'Lote';lotes.push(nome);porLoteMap[nome]=(porLoteMap[nome]||0)+n});ua=kg/uaKg;g.ids.forEach(function(pid){var pp=pmap[pid];if(pp){areaGrupo+=num(pp.area);capGrupo+=num(pp.area)*num(pp.uaHaAlvo)}})}
+   var rotInfo=null;
+   var planoRotacao=g&&g.plans.length===1&&g.plans[0].piquetes.length>1&&g.plans[0].rotacao?g.plans[0]:null;
+   if(g){
+     g.ids.forEach(function(pid){var pp=pmap[pid];if(pp){areaGrupo+=num(pp.area);capGrupo+=num(pp.area)*num(pp.uaHaAlvo)}});
+     if(planoRotacao){
+       var rot=planoRotacao.rotacao,ativo=rot.piqueteAtivoId===p.id;
+       if(ativo){
+         var n=num(planoRotacao.cab);cab=n;kg=n*num(planoRotacao.peso);ua=kg/uaKg;
+         var nome=planoRotacao.loteName||'Lote';lotes.push(nome);porLoteMap[nome]=n;
+       }
+       var diasAtivo=diasEntreDatasISO(rot.dataEntradaAtual);
+       var ultimaSaida=null;
+       for(var i=(rot.historico||[]).length-1;i>=0;i--){if(rot.historico[i].piqueteId===p.id){ultimaSaida=rot.historico[i].dataSaida;break;}}
+       var diasDescanso=ativo?null:(ultimaSaida?diasEntreDatasISO(ultimaSaida):null);
+       rotInfo={ativo:ativo,diasAtivo:ativo?diasAtivo:null,diasOcupacaoAlvo:rot.diasOcupacaoAlvo,diasDescanso:diasDescanso,diasDescansoAlvo:rot.diasDescansoAlvo,prontoParaVoltar:!ativo&&diasDescanso!=null&&diasDescanso>=rot.diasDescansoAlvo};
+     }else{
+       g.plans.forEach(function(pl){var n=num(pl.cab);cab+=n;kg+=n*num(pl.peso);var nome=pl.loteName||'Lote';lotes.push(nome);porLoteMap[nome]=(porLoteMap[nome]||0)+n});
+       ua=kg/uaKg;
+     }
+   }
    var porLote=Object.keys(porLoteMap).map(function(n){return{loteNome:n,cab:porLoteMap[n]};});
-   return{piqueteId:p.id,piqueteNome:p.name||'Piquete',area:num(p.area),uaHaAlvo:num(p.uaHaAlvo),capacidade:num(p.area)*num(p.uaHaAlvo),grupoIds:g?g.ids.slice():[p.id],grupoNomes:g?g.ids.map(function(pid){return pmap[pid]?pmap[pid].name:pid}):[p.name],lotes:lotes,porLote:porLote,cab:cab,peso:cab?kg/cab:null,ua:ua,uaHaAtual:areaGrupo?ua/areaGrupo:0,pct:capGrupo?ua/capGrupo*100:0,uaHaSugerida:'',agua:'',cocho:'',observacao:'',concluido:false,controlPastoParentId:p.controlPastoParentId||'',controlPastoGrupo:p.controlPastoGrupo||''}
+   return{piqueteId:p.id,piqueteNome:p.name||'Piquete',area:num(p.area),uaHaAlvo:num(p.uaHaAlvo),capacidade:num(p.area)*num(p.uaHaAlvo),grupoIds:g?g.ids.slice():[p.id],grupoNomes:g?g.ids.map(function(pid){return pmap[pid]?pmap[pid].name:pid}):[p.name],lotes:lotes,porLote:porLote,cab:cab,peso:cab?kg/cab:null,ua:ua,uaHaAtual:areaGrupo?ua/areaGrupo:0,pct:capGrupo?ua/capGrupo*100:0,uaHaSugerida:'',agua:'',cocho:'',observacao:'',concluido:false,controlPastoParentId:p.controlPastoParentId||'',controlPastoGrupo:p.controlPastoGrupo||'',rotacao:rotInfo}
  });
  items.sort(function(a,b){return(a.piqueteNome||'').localeCompare(b.piqueteNome||'',undefined,{numeric:true,sensitivity:'base'})});
  return{type:'planeja-recorrida',version:2,fazendaNome:d.fazendaNome||'Fazenda',dataEstudo:d.dataEstudo||'',iniciadoEm:new Date().toISOString(),uaKg:uaKg,items:items,cochos:[],piqueteCocho:{},proximoNumeroPraca:1}
+}
+function diasEntreDatasISO(dataIso){
+  if(!dataIso)return null;
+  var d1=new Date(dataIso+'T00:00:00'),d2=new Date();d2.setHours(0,0,0,0);
+  if(isNaN(d1))return null;
+  return Math.max(0,Math.round((d2-d1)/86400000));
 }
 function showWork(){
  $('welcome').classList.add('hidden');$('moduleHome').classList.add('hidden');if($('cochoScreen'))$('cochoScreen').classList.add('hidden');if($('moveScreen'))$('moveScreen').classList.add('hidden');if($('fornecerScreen'))$('fornecerScreen').classList.add('hidden');if($('prodScreen'))$('prodScreen').classList.add('hidden');if($('consScreen'))$('consScreen').classList.add('hidden');if($('relScreen'))$('relScreen').classList.add('hidden');$('work').classList.remove('hidden');
@@ -823,7 +849,16 @@ function markChips(field,val){document.querySelectorAll('.chips[data-field="'+fi
 function render(){
  if(!rec||!rec.items.length)return;idx=Math.max(0,Math.min(idx,rec.items.length-1));var x=rec.items[idx];
  $('pNome').textContent=x.piqueteNome;$('counter').textContent=(idx+1)+' / '+rec.items.length;$('mArea').textContent=fmt(x.area,1);$('mCab').textContent=fmt0(x.cab);$('mPeso').textContent=x.peso==null?'—':fmt0(x.peso);$('mUa').textContent=fmt(x.ua,1);$('mAtual').textContent=fmt(x.uaHaAtual,2);$('mAlvo').textContent=fmt(x.uaHaAlvo,2);$('mCap').textContent=fmt(x.capacidade,1);$('mPct').textContent=x.cab?fmt(x.pct,0)+'%':'—';$('lotes').textContent=x.lotes.length?x.lotes.join(' + '):'Sem lote confirmado';$('alvoBig').textContent=fmt(x.uaHaAlvo,2);$('sug').value=x.uaHaSugerida===''?'':String(x.uaHaSugerida).replace('.',',');$('obs').value=x.observacao||'';$('done').checked=!!x.concluido;markChips('agua',x.agua);markChips('cocho',x.cocho);
- if(x.grupoNomes.length>1){$('groupNote').classList.remove('hidden');$('groupNote').textContent='Piquetão: '+x.grupoNomes.join(' + ')+'. Cabeças, peso, UA e UA/ha atual são do grupo; a sugestão é somente para '+x.piqueteNome+'.'}else $('groupNote').classList.add('hidden');
+ if(x.rotacao){
+   $('groupNote').classList.remove('hidden');
+   var r=x.rotacao;
+   if(r.ativo){
+     $('groupNote').innerHTML='🟢 <b>Piquetão em rotação</b> — este piquete está ativo há '+r.diasAtivo+' dia(s)'+(r.diasAtivo>=r.diasOcupacaoAlvo?' <span style="color:#A63D2F;font-weight:700;">(já passou do alvo de '+r.diasOcupacaoAlvo+')</span>':' (alvo: '+r.diasOcupacaoAlvo+' dias)')+'. Grupo: '+esc(x.grupoNomes.join(' + '))+'.';
+   }else{
+     var txtDesc=r.diasDescanso==null?'ainda não foi usado':'descansando há '+r.diasDescanso+' dia(s)'+(r.prontoParaVoltar?' — pronto pra voltar':' (alvo: '+r.diasDescansoAlvo+')');
+     $('groupNote').innerHTML='⚪ <b>Piquetão em rotação</b> — este piquete está '+txtDesc+'. Sem animais agora.';
+   }
+ }else if(x.grupoNomes.length>1){$('groupNote').classList.remove('hidden');$('groupNote').textContent='Piquetão: '+x.grupoNomes.join(' + ')+'. Cabeças, peso, UA e UA/ha atual são do grupo; a sugestão é somente para '+x.piqueteNome+'.'}else $('groupNote').classList.add('hidden');
  var done=rec.items.filter(function(i){return i.concluido}).length;$('progressTxt').textContent=done+' / '+rec.items.length+' concluídos';$('bar').style.width=(rec.items.length?done/rec.items.length*100:0)+'%';$('prev').disabled=idx===0;$('next').textContent=idx===rec.items.length-1?'Salvar ✓':'Salvar e próximo →';save()
 }
 function capture(){if(!rec||!rec.items.length)return;var x=rec.items[idx],s=$('sug').value.trim().replace(',','.');x.uaHaSugerida=s===''?'':Number(s);if(x.uaHaSugerida!==''&&(!isFinite(x.uaHaSugerida)||x.uaHaSugerida<0))x.uaHaSugerida='';x.observacao=$('obs').value.trim();x.concluido=$('done').checked;save()}
@@ -835,8 +870,37 @@ function renderList(q){
 }
 function openList(focus){capture();$('search').value='';renderList('');$('listPanel').classList.remove('hidden');if(focus)setTimeout(function(){$('search').focus()},80)}
 function exportResult(){
- capture();var payload={type:'planeja-recorrida-resultado',version:2,fazendaNome:rec.fazendaNome,dataEstudo:rec.dataEstudo,iniciadoEm:rec.iniciadoEm,finalizadoEm:new Date().toISOString(),totalPiquetes:rec.items.length,concluidos:rec.items.filter(function(x){return x.concluido}).length,resultados:rec.items.map(function(x){return{piqueteId:x.piqueteId,piqueteNome:x.piqueteNome,uaHaAlvoOriginal:x.uaHaAlvo,uaHaSugerida:x.uaHaSugerida,agua:x.agua,cocho:x.cocho,observacao:x.observacao||'',concluido:!!x.concluido}})};
+ capture();var payload={type:'planeja-recorrida-resultado',version:2,fazendaNome:rec.fazendaNome,dataEstudo:rec.dataEstudo,iniciadoEm:rec.iniciadoEm,finalizadoEm:new Date().toISOString(),quemFez:getNomeUsuario(),totalPiquetes:rec.items.length,concluidos:rec.items.filter(function(x){return x.concluido}).length,resultados:rec.items.map(function(x){return{piqueteId:x.piqueteId,piqueteNome:x.piqueteNome,uaHaAlvoOriginal:x.uaHaAlvo,uaHaSugerida:x.uaHaSugerida,agua:x.agua,cocho:x.cocho,observacao:x.observacao||'',concluido:!!x.concluido}})};
  var txt=JSON.stringify(payload,null,2),blob=new Blob([txt],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a'),fn=(rec.fazendaNome||'fazenda').replace(/[^a-zA-Z0-9]+/g,'_');a.href=url;a.download='recorrida_'+fn+'_'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1000)
+}
+function importarRecorridaOutro(evt){
+  var file=evt.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(){
+    try{
+      var d=JSON.parse(reader.result);
+      if(!d||d.type!=='planeja-recorrida-resultado')throw new Error('esse arquivo não parece ser um resultado de recorrida.');
+      var linhas=(d.resultados||[]).map(function(r){
+        var temNota=r.observacao||r.agua==='Problema'||r.cocho==='Problema'||r.uaHaSugerida!=='';
+        return '<tr'+(temNota?' style="background:#FFF8E5;"':'')+'><td>'+htmlSafe(r.piqueteNome||'')+'</td>'+
+          '<td>'+htmlSafe(statusText(r.agua))+'</td><td>'+htmlSafe(statusText(r.cocho))+'</td>'+
+          '<td>'+(r.uaHaSugerida===''||r.uaHaSugerida==null?'—':fmt(r.uaHaSugerida,2))+'</td>'+
+          '<td>'+htmlSafe(r.observacao||'')+'</td></tr>';
+      }).join('');
+      var dt=d.finalizadoEm?new Date(d.finalizadoEm):null;
+      $('recorridaOutroPanel').innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">'+
+        '<div><b>Recorrida de '+htmlSafe(d.quemFez||'—')+'</b><br><small style="color:var(--muted);">'+htmlSafe(d.fazendaNome||'')+(dt&&!isNaN(dt)?' · '+dt.toLocaleString('pt-BR'):'')+' · '+(d.concluidos||0)+'/'+(d.totalPiquetes||0)+' piquetes concluídos</small></div>'+
+        '<button class="btn btnGhost" id="fecharRecorridaOutro" type="button">✕ Fechar</button>'+
+        '</div>'+
+        '<div style="overflow-x:auto;"><table class="relTable"><thead><tr><th>Piquete</th><th>Água</th><th>Cocho</th><th>UA/ha sugerida</th><th>Observação</th></tr></thead><tbody>'+linhas+'</tbody></table></div>';
+      $('recorridaOutroPanel').classList.remove('hidden');
+      $('fecharRecorridaOutro').onclick=function(){$('recorridaOutroPanel').classList.add('hidden');};
+    }catch(ex){
+      alert('Não foi possível importar: '+ex.message);
+    }
+  };
+  reader.readAsText(file);
+  evt.target.value='';
 }
 function statusText(v){return v||'—'}
 function printReport(){
@@ -875,6 +939,8 @@ $('btnContinue').onclick=showModuleHome;$('prev').onclick=function(){capture();i
 document.querySelectorAll('.chips').forEach(function(g){g.querySelectorAll('.chip').forEach(function(b){b.onclick=function(){var x=rec.items[idx],field=g.dataset.field;x[field]=(x[field]===b.dataset.v?'':b.dataset.v);save();render()}})});
 $('btnLista').onclick=function(){openList(false)};$('btnBuscar').onclick=function(){openList(true)};$('closeList').onclick=function(){$('listPanel').classList.add('hidden')};$('search').oninput=function(){renderList(this.value)};
 $('btnExport').onclick=exportResult;$('btnPdf').onclick=printReport;
+$('btnImportarRecorridaOutro').onclick=function(){$('importRecorridaOutroFile').click();};
+$('importRecorridaOutroFile').addEventListener('change',importarRecorridaOutro);
 $('btnTrocar').onclick=function(){if(confirm('Trocar de fazenda apaga a recorrida salva neste aparelho. Exporte o resultado antes, se precisar. Continuar?')){localStorage.removeItem(KEY);source=null;rec=null;idx=0;location.reload()}};
 
 
