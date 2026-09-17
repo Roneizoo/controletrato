@@ -948,7 +948,23 @@ function imprimirQRs(somenteId){
 $('btnImprimirQRs').onclick=function(){imprimirQRs(null);};
 $('btnTrocarSenha').onclick=trocarSenhaConfig;
 $('btnImport').onclick=function(){$('file').click()};
-$('file').onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(!d||!Array.isArray(d.piquetes)||!Array.isArray(d.planos))throw new Error('Arquivo não parece ser uma fazenda exportada pelo Planeja UA/ha.');source=d;rec=buildRec(d);idx=0;save();showModuleHome()}catch(ex){alert('Não foi possível importar: '+ex.message)}};r.readAsText(f);e.target.value=''};
+$('file').onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(!d||!Array.isArray(d.piquetes)||!Array.isArray(d.planos))throw new Error('Arquivo não parece ser uma fazenda exportada pelo Planeja UA/ha.');
+  var recAntigo=(rec&&rec.fazendaNome===d.fazendaNome)?rec:null;
+  source=d;rec=buildRec(d);
+  if(recAntigo){
+    rec.cochos=recAntigo.cochos||[];
+    rec.piqueteCocho=recAntigo.piqueteCocho||{};
+    rec.proximoNumeroPraca=recAntigo.proximoNumeroPraca||1;
+    if(recAntigo.configSenha)rec.configSenha=recAntigo.configSenha;
+    rec.produtos=recAntigo.produtos||[];
+    rec.fornecimentos=recAntigo.fornecimentos||[];
+    rec.movimentos=recAntigo.movimentos||[];
+    if(recAntigo.recorridaAnterior)rec.recorridaAnterior=recAntigo.recorridaAnterior;
+    if(recAntigo.mapaMarcacoes)rec.mapaMarcacoes=recAntigo.mapaMarcacoes;
+  }
+  idx=0;save();showModuleHome();
+  if(recAntigo)alert('Fazenda atualizada — as praças, produtos e relatórios que já estavam neste celular foram mantidos.');
+}catch(ex){alert('Não foi possível importar: '+ex.message)}};r.readAsText(f);e.target.value=''};
 $('btnContinue').onclick=showModuleHome;$('prev').onclick=function(){capture();if(idx>0)idx--;render()};$('next').onclick=function(){capture();if(idx<rec.items.length-1)idx++;render()};$('sug').onchange=capture;$('obs').onchange=capture;$('done').onchange=function(){capture();render()};
 document.querySelectorAll('.chips').forEach(function(g){g.querySelectorAll('.chip').forEach(function(b){b.onclick=function(){var x=rec.items[idx],field=g.dataset.field;x[field]=(x[field]===b.dataset.v?'':b.dataset.v);save();render()}})});
 $('btnLista').onclick=function(){openList(false)};$('btnBuscar').onclick=function(){openList(true)};$('closeList').onclick=function(){$('listPanel').classList.add('hidden')};$('search').oninput=function(){renderList(this.value)};
