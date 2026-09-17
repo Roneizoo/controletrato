@@ -680,13 +680,13 @@ table.relTable td{padding:6px 8px;border-bottom:1px solid var(--line);white-spac
 
   <section id="work" class="hidden">
     <div class="toolbar">
-      <div class="left"><button class="btn btnGhost" id="btnExport">↓ Resultado</button><button class="btn btnGold" id="btnPdf">▤ PDF / Imprimir</button><button class="btn btnGhost" id="btnImportarRecorridaOutro">📥 Ver recorrida de outra pessoa</button><input type="file" id="importRecorridaOutroFile" accept=".json" style="display:none;"></div>
+      <div class="left"><button class="btn btnGhost" id="btnExport">↓ Resultado</button><button class="btn btnGold" id="btnPdf">▤ PDF / Imprimir</button><button class="btn btnGhost" id="btnImportarRecorridaOutro">📥 Importar recorrida anterior</button><input type="file" id="importRecorridaOutroFile" accept=".json" style="display:none;"></div>
       <div class="right"><button class="btn btnDanger" id="btnTrocar">Trocar fazenda</button></div>
     </div>
-    <div id="recorridaOutroPanel" class="card hidden" style="margin-bottom:12px;"></div>
     <div class="card">
       <div class="paddockHead"><div><div class="eyebrow">PIQUETE</div><div class="paddockName" id="pNome">—</div></div><div class="counter" id="counter">1 / 1</div></div>
       <div class="groupNote hidden" id="groupNote"></div>
+      <div class="groupNote hidden" id="recorridaAnteriorNote" style="background:#EFF3F6;border-color:#2b6a8a;"></div>
       <div class="metrics">
         <div class="metric"><span>Área</span><b id="mArea">—</b><small>ha</small></div><div class="metric"><span>Cabeças</span><b id="mCab">—</b><small>grupo</small></div><div class="metric"><span>Peso médio</span><b id="mPeso">—</b><small>kg</small></div><div class="metric"><span>UA</span><b id="mUa">—</b><small>grupo</small></div>
       </div>
@@ -859,6 +859,13 @@ function render(){
      $('groupNote').innerHTML='⚪ <b>Piquetão em rotação</b> — este piquete está '+txtDesc+'. Sem animais agora.';
    }
  }else if(x.grupoNomes.length>1){$('groupNote').classList.remove('hidden');$('groupNote').textContent='Piquetão: '+x.grupoNomes.join(' + ')+'. Cabeças, peso, UA e UA/ha atual são do grupo; a sugestão é somente para '+x.piqueteNome+'.'}else $('groupNote').classList.add('hidden');
+ var ant=rec.recorridaAnterior&&rec.recorridaAnterior[x.piqueteNome];
+ if(ant){
+   var dt=ant.finalizadoEm?new Date(ant.finalizadoEm):null;
+   $('recorridaAnteriorNote').classList.remove('hidden');
+   $('recorridaAnteriorNote').innerHTML='📋 <b>Última recorrida'+(ant.quemFez?' — '+esc(ant.quemFez):'')+'</b>'+(dt&&!isNaN(dt)?' <span style="font-weight:400;opacity:.75;">('+dt.toLocaleDateString('pt-BR')+')</span>':'')+
+     '<br><span style="font-weight:400;">Água: '+esc(statusText(ant.agua))+' · Cocho: '+esc(statusText(ant.cocho))+(ant.uaHaSugerida!==''&&ant.uaHaSugerida!=null?' · UA/ha sugerida: '+fmt(ant.uaHaSugerida,2):'')+(ant.observacao?'<br>"'+esc(ant.observacao)+'"':'')+'</span>';
+ }else{$('recorridaAnteriorNote').classList.add('hidden');}
  var done=rec.items.filter(function(i){return i.concluido}).length;$('progressTxt').textContent=done+' / '+rec.items.length+' concluídos';$('bar').style.width=(rec.items.length?done/rec.items.length*100:0)+'%';$('prev').disabled=idx===0;$('next').textContent=idx===rec.items.length-1?'Salvar ✓':'Salvar e próximo →';save()
 }
 function capture(){if(!rec||!rec.items.length)return;var x=rec.items[idx],s=$('sug').value.trim().replace(',','.');x.uaHaSugerida=s===''?'':Number(s);if(x.uaHaSugerida!==''&&(!isFinite(x.uaHaSugerida)||x.uaHaSugerida<0))x.uaHaSugerida='';x.observacao=$('obs').value.trim();x.concluido=$('done').checked;save()}
@@ -880,21 +887,16 @@ function importarRecorridaOutro(evt){
     try{
       var d=JSON.parse(reader.result);
       if(!d||d.type!=='planeja-recorrida-resultado')throw new Error('esse arquivo não parece ser um resultado de recorrida.');
-      var linhas=(d.resultados||[]).map(function(r){
-        var temNota=r.observacao||r.agua==='Problema'||r.cocho==='Problema'||r.uaHaSugerida!=='';
-        return '<tr'+(temNota?' style="background:#FFF8E5;"':'')+'><td>'+htmlSafe(r.piqueteNome||'')+'</td>'+
-          '<td>'+htmlSafe(statusText(r.agua))+'</td><td>'+htmlSafe(statusText(r.cocho))+'</td>'+
-          '<td>'+(r.uaHaSugerida===''||r.uaHaSugerida==null?'—':fmt(r.uaHaSugerida,2))+'</td>'+
-          '<td>'+htmlSafe(r.observacao||'')+'</td></tr>';
-      }).join('');
-      var dt=d.finalizadoEm?new Date(d.finalizadoEm):null;
-      $('recorridaOutroPanel').innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">'+
-        '<div><b>Recorrida de '+htmlSafe(d.quemFez||'—')+'</b><br><small style="color:var(--muted);">'+htmlSafe(d.fazendaNome||'')+(dt&&!isNaN(dt)?' · '+dt.toLocaleString('pt-BR'):'')+' · '+(d.concluidos||0)+'/'+(d.totalPiquetes||0)+' piquetes concluídos</small></div>'+
-        '<button class="btn btnGhost" id="fecharRecorridaOutro" type="button">✕ Fechar</button>'+
-        '</div>'+
-        '<div style="overflow-x:auto;"><table class="relTable"><thead><tr><th>Piquete</th><th>Água</th><th>Cocho</th><th>UA/ha sugerida</th><th>Observação</th></tr></thead><tbody>'+linhas+'</tbody></table></div>';
-      $('recorridaOutroPanel').classList.remove('hidden');
-      $('fecharRecorridaOutro').onclick=function(){$('recorridaOutroPanel').classList.add('hidden');};
+      if(!rec.recorridaAnterior)rec.recorridaAnterior={};
+      var qtd=0;
+      (d.resultados||[]).forEach(function(r){
+        if(!r.piqueteNome)return;
+        rec.recorridaAnterior[r.piqueteNome]={agua:r.agua||'',cocho:r.cocho||'',uaHaSugerida:r.uaHaSugerida,observacao:r.observacao||'',quemFez:d.quemFez||'',finalizadoEm:d.finalizadoEm||''};
+        qtd++;
+      });
+      save();
+      alert('Importado: '+qtd+' piquete(s) com anotações da recorrida anterior de '+(d.quemFez||'?')+'. Elas vão aparecer conforme você for passando pelos piquetes.');
+      render();
     }catch(ex){
       alert('Não foi possível importar: '+ex.message);
     }
@@ -1162,10 +1164,21 @@ function moverLoteEntreItens(deItem,paraItem,loteNome,cab){
 function itensComLote(loteNome){
   return (rec.items||[]).filter(function(x){return cabDoLoteNoItem(x,loteNome)>0;});
 }
-function preencherDeOptions(){
+function preencherDeOptionsTodos(){
+  var itens=rec.items.filter(function(x){return x.cab>0;});
+  $('moveDe').innerHTML=itens.length?itens.map(function(x){return '<option value="'+x.piqueteId+'">'+htmlSafe(x.piqueteNome)+'</option>';}).join(''):'<option value="">Nenhum piquete com animais encontrado</option>';
+}
+function loteMudouAutoSelecionaDe(){
   var lote=$('moveLote').value;
   var itens=itensComLote(lote);
-  $('moveDe').innerHTML=itens.length?itens.map(function(x){return '<option value="'+x.piqueteId+'">'+htmlSafe(x.piqueteNome)+'</option>';}).join(''):'<option value="">Este lote não está em nenhum piquete cadastrado</option>';
+  if(itens.length===1)$('moveDe').value=itens[0].piqueteId;
+  preencherParaOptions();atualizarQuantidadeMove();renderMovePracaInfo();
+}
+function deMudouAutoSelecionaLote(){
+  var deId=$('moveDe').value;
+  var item=rec.items.find(function(x){return x.piqueteId===deId;});
+  if(item&&item.porLote&&item.porLote.length===1)$('moveLote').value=item.porLote[0].loteNome;
+  preencherParaOptions();atualizarQuantidadeMove();renderMovePracaInfo();
 }
 function atualizarQuantidadeMove(){
   var lote=$('moveLote').value,deId=$('moveDe').value;
@@ -1204,7 +1217,7 @@ function renderMoveScreen(){
   if(!rec)return;
   var lotes=lotesUnicos();
   $('moveLote').innerHTML=lotes.length?lotes.map(function(l){return '<option value="'+htmlSafe(l)+'">'+htmlSafe(l)+'</option>';}).join(''):'<option value="">Nenhum lote encontrado</option>';
-  preencherDeOptions();
+  preencherDeOptionsTodos();
   preencherParaOptions();
   atualizarQuantidadeMove();
   renderMovePracaInfo();
@@ -1869,8 +1882,8 @@ $('pracasSalvas').addEventListener('click',function(e){
 });
 
 $('moveBack').onclick=showModuleHome;
-$('moveLote').addEventListener('change',function(){preencherDeOptions();preencherParaOptions();atualizarQuantidadeMove();renderMovePracaInfo();});
-$('moveDe').addEventListener('change',function(){preencherParaOptions();atualizarQuantidadeMove();renderMovePracaInfo();});
+$('moveLote').addEventListener('change',loteMudouAutoSelecionaDe);
+$('moveDe').addEventListener('change',deMudouAutoSelecionaLote);
 $('movePara').addEventListener('change',renderMovePracaInfo);
 $('moveConfirmar').onclick=confirmarMovimentacao;
 setInterval(function(){if(!$('moveScreen').classList.contains('hidden'))updateMoveHora();},1000);
