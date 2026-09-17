@@ -449,6 +449,7 @@ table.relTable td{padding:6px 8px;border-bottom:1px solid var(--line);white-spac
         <input class="bigInput" id="moveQtd" readonly disabled style="background:#f1f3f0;color:#244b35;">
       </div>
 
+      <div id="moveDestinoInfo" class="pracaInfo"></div>
       <div id="movePracaInfo" class="pracaInfo"></div>
       <div class="moveHora">Data/hora do registro: <b id="moveHoraTxt">—</b> (automática, não editável)</div>
 
@@ -860,11 +861,17 @@ function render(){
    }
  }else if(x.grupoNomes.length>1){$('groupNote').classList.remove('hidden');$('groupNote').textContent='Piquetão: '+x.grupoNomes.join(' + ')+'. Cabeças, peso, UA e UA/ha atual são do grupo; a sugestão é somente para '+x.piqueteNome+'.'}else $('groupNote').classList.add('hidden');
  var ant=rec.recorridaAnterior&&rec.recorridaAnterior[x.piqueteNome];
- if(ant){
-   var dt=ant.finalizadoEm?new Date(ant.finalizadoEm):null;
+ if(ant&&ant.length){
    $('recorridaAnteriorNote').classList.remove('hidden');
-   $('recorridaAnteriorNote').innerHTML='📋 <b>Última recorrida'+(ant.quemFez?' — '+esc(ant.quemFez):'')+'</b>'+(dt&&!isNaN(dt)?' <span style="font-weight:400;opacity:.75;">('+dt.toLocaleDateString('pt-BR')+')</span>':'')+
-     '<br><span style="font-weight:400;">Água: '+esc(statusText(ant.agua))+' · Cocho: '+esc(statusText(ant.cocho))+(ant.uaHaSugerida!==''&&ant.uaHaSugerida!=null?' · UA/ha sugerida: '+fmt(ant.uaHaSugerida,2):'')+(ant.observacao?'<br>"'+esc(ant.observacao)+'"':'')+'</span>';
+   $('recorridaAnteriorNote').innerHTML='📋 <b>Histórico de recorridas anteriores neste piquete ('+ant.length+')</b>'+
+     ant.map(function(e){
+       var dt=e.finalizadoEm?new Date(e.finalizadoEm):null;
+       return '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #c7d6de;font-weight:400;">'+
+         '<b>'+(dt&&!isNaN(dt)?dt.toLocaleDateString('pt-BR'):'—')+'</b>'+(e.quemFez?' — '+esc(e.quemFez):'')+
+         '<br>Água: '+esc(statusText(e.agua))+' · Cocho: '+esc(statusText(e.cocho))+(e.uaHaSugerida!==''&&e.uaHaSugerida!=null?' · UA/ha sugerida: '+fmt(e.uaHaSugerida,2):'')+
+         (e.observacao?'<br>"'+esc(e.observacao)+'"':'')+
+       '</div>';
+     }).join('');
  }else{$('recorridaAnteriorNote').classList.add('hidden');}
  var done=rec.items.filter(function(i){return i.concluido}).length;$('progressTxt').textContent=done+' / '+rec.items.length+' concluídos';$('bar').style.width=(rec.items.length?done/rec.items.length*100:0)+'%';$('prev').disabled=idx===0;$('next').textContent=idx===rec.items.length-1?'Salvar ✓':'Salvar e próximo →';save()
 }
@@ -888,14 +895,19 @@ function importarRecorridaOutro(evt){
       var d=JSON.parse(reader.result);
       if(!d||d.type!=='planeja-recorrida-resultado')throw new Error('esse arquivo não parece ser um resultado de recorrida.');
       if(!rec.recorridaAnterior)rec.recorridaAnterior={};
-      var qtd=0;
+      var qtd=0,repetidos=0;
       (d.resultados||[]).forEach(function(r){
         if(!r.piqueteNome)return;
-        rec.recorridaAnterior[r.piqueteNome]={agua:r.agua||'',cocho:r.cocho||'',uaHaSugerida:r.uaHaSugerida,observacao:r.observacao||'',quemFez:d.quemFez||'',finalizadoEm:d.finalizadoEm||''};
+        if(!Array.isArray(rec.recorridaAnterior[r.piqueteNome]))rec.recorridaAnterior[r.piqueteNome]=[];
+        var lista=rec.recorridaAnterior[r.piqueteNome];
+        var jaExiste=lista.some(function(e){return e.finalizadoEm===d.finalizadoEm&&e.quemFez===d.quemFez;});
+        if(jaExiste){repetidos++;return;}
+        lista.push({agua:r.agua||'',cocho:r.cocho||'',uaHaSugerida:r.uaHaSugerida,observacao:r.observacao||'',quemFez:d.quemFez||'',finalizadoEm:d.finalizadoEm||''});
+        lista.sort(function(a,b){return new Date(b.finalizadoEm)-new Date(a.finalizadoEm);});
         qtd++;
       });
       save();
-      alert('Importado: '+qtd+' piquete(s) com anotações da recorrida anterior de '+(d.quemFez||'?')+'. Elas vão aparecer conforme você for passando pelos piquetes.');
+      alert('Importado: '+qtd+' anotação(ões) nova(s) de '+(d.quemFez||'?')+(repetidos?' ('+repetidos+' já existiam e foram ignoradas)':'')+'. Vão aparecer conforme você for passando pelos piquetes.');
       render();
     }catch(ex){
       alert('Não foi possível importar: '+ex.message);
@@ -1172,19 +1184,32 @@ function loteMudouAutoSelecionaDe(){
   var lote=$('moveLote').value;
   var itens=itensComLote(lote);
   if(itens.length===1)$('moveDe').value=itens[0].piqueteId;
-  preencherParaOptions();atualizarQuantidadeMove();renderMovePracaInfo();
+  preencherParaOptions();atualizarQuantidadeMove();renderMovePracaInfo();renderMoveDestinoInfo();
 }
 function deMudouAutoSelecionaLote(){
   var deId=$('moveDe').value;
   var item=rec.items.find(function(x){return x.piqueteId===deId;});
   if(item&&item.porLote&&item.porLote.length===1)$('moveLote').value=item.porLote[0].loteNome;
-  preencherParaOptions();atualizarQuantidadeMove();renderMovePracaInfo();
+  preencherParaOptions();atualizarQuantidadeMove();renderMovePracaInfo();renderMoveDestinoInfo();
 }
 function atualizarQuantidadeMove(){
   var lote=$('moveLote').value,deId=$('moveDe').value;
   var item=rec.items.find(function(x){return x.piqueteId===deId;});
   var cab=item?cabDoLoteNoItem(item,lote):0;
   $('moveQtd').value=cab||'';
+}
+function renderMoveDestinoInfo(){
+  var paraId=$('movePara').value;
+  var item=rec.items.find(function(x){return x.piqueteId===paraId;});
+  var box=$('moveDestinoInfo');
+  if(!item){box.className='pracaInfo';box.innerHTML='';return;}
+  if(item.cab>0){
+    box.className='pracaInfo warn';
+    box.innerHTML='<b>⚠ Esse piquete já tem gado</b> — '+fmt0(item.cab)+' cabeça(s) de '+esc(item.lotes.join(' + '))+'. Confirmar aqui vai juntar com o que já está lá.';
+  }else{
+    box.className='pracaInfo';
+    box.innerHTML='<b>✓ Esse piquete está vazio</b> — sem animais no momento.';
+  }
 }
 function renderMovePracaInfo(){
   var deId=$('moveDe').value,paraId=$('movePara').value;
@@ -1220,7 +1245,7 @@ function renderMoveScreen(){
   preencherDeOptionsTodos();
   preencherParaOptions();
   atualizarQuantidadeMove();
-  renderMovePracaInfo();
+  renderMovePracaInfo();renderMoveDestinoInfo();
   renderMoveList();
 }
 function updateMoveHora(){var n=$('moveHoraTxt');if(n)n.textContent=new Date().toLocaleString('pt-BR');}
@@ -1245,24 +1270,19 @@ function confirmarMovimentacao(){
   var paraItem=rec.items.find(function(x){return x.piqueteId===paraId;});
   var pDe=pracaDoPiquete(deId),pPara=pracaDoPiquete(paraId);
   var mesmaPraca=(pDe&&pPara)?(pDe.id===pPara.id):null;
-  var btn=$('moveConfirmar');btn.disabled=true;var txtOrig=btn.textContent;btn.textContent='📍 obtendo localização...';
-  obterLocalizacao(function(loc){
-    btn.disabled=false;btn.textContent=txtOrig;
-    var geo=classificarLocal(loc,pDe?pDe.gpsRef:null);
-    if(!Array.isArray(rec.movimentos))rec.movimentos=[];
-    rec.movimentos.push({
-      id:'mov_'+Date.now().toString(36),loteNome:loteNome,
-      deId:deId,deNome:deItem?deItem.piqueteNome:deId,
-      paraId:paraId,paraNome:paraItem?paraItem.piqueteNome:paraId,
-      cab:cab,dataHora:new Date().toISOString(),mesmaPraca:mesmaPraca,geo:geo,quemFez:getNomeUsuario()
-    });
-    moverLoteEntreItens(deItem,paraItem,loteNome,cab);
-    save();
-    var msg='Movimentação registrada: '+loteNome+' — '+(deItem?deItem.piqueteNome:deId)+' → '+(paraItem?paraItem.piqueteNome:paraId)+' ('+cab+' cab).';
-    renderMoveScreen();
-    updateMoveHora();
-    alert(msg);
+  if(!Array.isArray(rec.movimentos))rec.movimentos=[];
+  rec.movimentos.push({
+    id:'mov_'+Date.now().toString(36),loteNome:loteNome,
+    deId:deId,deNome:deItem?deItem.piqueteNome:deId,
+    paraId:paraId,paraNome:paraItem?paraItem.piqueteNome:paraId,
+    cab:cab,dataHora:new Date().toISOString(),mesmaPraca:mesmaPraca,quemFez:getNomeUsuario()
   });
+  moverLoteEntreItens(deItem,paraItem,loteNome,cab);
+  save();
+  var msg='Movimentação registrada: '+loteNome+' — '+(deItem?deItem.piqueteNome:deId)+' → '+(paraItem?paraItem.piqueteNome:paraId)+' ('+cab+' cab).';
+  renderMoveScreen();
+  updateMoveHora();
+  alert(msg);
 }
 
 /* Etapa 6 — Trato / Cocho */
@@ -1884,7 +1904,7 @@ $('pracasSalvas').addEventListener('click',function(e){
 $('moveBack').onclick=showModuleHome;
 $('moveLote').addEventListener('change',loteMudouAutoSelecionaDe);
 $('moveDe').addEventListener('change',deMudouAutoSelecionaLote);
-$('movePara').addEventListener('change',renderMovePracaInfo);
+$('movePara').addEventListener('change',function(){renderMovePracaInfo();renderMoveDestinoInfo();});
 $('moveConfirmar').onclick=confirmarMovimentacao;
 setInterval(function(){if(!$('moveScreen').classList.contains('hidden'))updateMoveHora();},1000);
 
