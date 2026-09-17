@@ -343,6 +343,10 @@ table.relTable td{padding:6px 8px;border-bottom:1px solid var(--line);white-spac
         <span class="ico">📅</span>
         <span class="miniTxt"><b>Calendário</b><small>ver o que foi feito em cada dia</small></span>
       </button>
+      <button class="moduleMini" id="modComoUsar" type="button">
+        <span class="ico">❓</span>
+        <span class="miniTxt"><b>Como usar</b><small>o passo a passo de cada função</small></span>
+      </button>
       <button class="moduleMini hidden" id="modMapaFazenda" type="button">
         <span class="ico">🗺️</span>
         <span class="miniTxt"><b>Mapa da fazenda</b><small>onde fica cada piquete</small></span>
@@ -679,6 +683,36 @@ table.relTable td{padding:6px 8px;border-bottom:1px solid var(--line);white-spac
     <div style="margin-top:14px;"><button class="btn btnGhost" id="calBack" type="button">← Início</button></div>
   </section>
 
+  <section id="comoUsarScreen" class="hidden" style="max-width:900px;margin:18px auto 0;padding:0 12px;">
+    <div class="moduleHero">
+      <small>APP CAMPO · COMO USAR</small>
+      <h2>O passo a passo de cada função</h2>
+    </div>
+    <div class="prodPanel">
+      <h3 style="margin-top:0;">Antes de tudo</h3>
+      <p>Na primeira vez, toque em <b>"Importar Fazenda"</b> e escolha o arquivo exportado do Planeja UA/ha (aba Piquetes, Situação atual, ou Control Pasto — o gestor te diz qual). Depois disso o app funciona sem internet.</p>
+      <p>Se importar a fazenda de novo mais tarde (depois de uma redistribuição), as praças, produtos e relatórios que já estavam aqui continuam guardados — só os dados de piquetes e lotes atualizam.</p>
+    </div>
+    <div class="prodPanel">
+      <h3 style="margin-top:0;">🐄 Movimentar Gado</h3>
+      <p>Escolha o <b>lote</b> OU o <b>piquete de origem</b> — o outro campo se preenche sozinho quando só existe uma opção. Confirme o destino e a quantidade (sempre o grupo inteiro daquele lote).</p>
+    </div>
+    <div class="prodPanel">
+      <h3 style="margin-top:0;">🪣 Trato / Cocho</h3>
+      <p>Leia o QR da placa do cocho sempre que possível — a praça certa é preenchida sozinha. Escolha a situação do cocho, o produto e a quantidade.</p>
+    </div>
+    <div class="prodPanel">
+      <h3 style="margin-top:0;">🚶 Recorrida</h3>
+      <p>Feita geralmente uma vez por mês. Ao terminar, toque em <b>"↓ Resultado"</b> pra gerar o arquivo que volta pro Planeja (aba Piquetes → Importar Recorrida) — isso atualiza os alvos de UA/ha.</p>
+      <p>Use <b>"📥 Importar recorrida anterior"</b> pra ver, piquete por piquete, o que foi anotado nos meses passados — ajuda a conferir se um problema já foi resolvido.</p>
+    </div>
+    <div class="prodPanel">
+      <h3 style="margin-top:0;">📅 Calendário e 📋 Relatórios</h3>
+      <p>O Calendário mostra o que foi feito em cada dia. Os Relatórios juntam o trabalho de vários celulares — use "↓ Exportar Tudo" / "↑ Importar Tudo" na tela inicial.</p>
+    </div>
+    <div style="margin-top:14px;"><button class="btn btnGhost" id="comoUsarBack" type="button">← Início</button></div>
+  </section>
+
   <section id="work" class="hidden">
     <div class="toolbar">
       <div class="left"><button class="btn btnGhost" id="btnExport">↓ Resultado</button><button class="btn btnGold" id="btnPdf">▤ PDF / Imprimir</button><button class="btn btnGhost" id="btnImportarRecorridaOutro">📥 Importar recorrida anterior</button><input type="file" id="importRecorridaOutroFile" accept=".json" style="display:none;"></div>
@@ -840,7 +874,7 @@ function showWork(){
 function showModuleHome(){
  if(!rec)return;
  capture();
- $('welcome').classList.add('hidden');$('work').classList.add('hidden');if($('cochoScreen'))$('cochoScreen').classList.add('hidden');if($('moveScreen'))$('moveScreen').classList.add('hidden');if($('fornecerScreen'))$('fornecerScreen').classList.add('hidden');if($('prodScreen'))$('prodScreen').classList.add('hidden');if($('consScreen'))$('consScreen').classList.add('hidden');if($('relScreen'))$('relScreen').classList.add('hidden');if($('mapaScreen'))$('mapaScreen').classList.add('hidden');if($('calScreen'))$('calScreen').classList.add('hidden');$('moduleHome').classList.remove('hidden');
+ $('welcome').classList.add('hidden');$('work').classList.add('hidden');if($('cochoScreen'))$('cochoScreen').classList.add('hidden');if($('moveScreen'))$('moveScreen').classList.add('hidden');if($('fornecerScreen'))$('fornecerScreen').classList.add('hidden');if($('prodScreen'))$('prodScreen').classList.add('hidden');if($('consScreen'))$('consScreen').classList.add('hidden');if($('relScreen'))$('relScreen').classList.add('hidden');if($('mapaScreen'))$('mapaScreen').classList.add('hidden');if($('calScreen'))$('calScreen').classList.add('hidden');if($('comoUsarScreen'))$('comoUsarScreen').classList.add('hidden');$('moduleHome').classList.remove('hidden');
  $('top').classList.remove('hidden');$('navbar').classList.add('hidden');
  $('farmTop').textContent=rec.fazendaNome||'Fazenda';$('moduleFarm').textContent=rec.fazendaNome||'Fazenda';save();
  var nomeF=(rec.fazendaNome||'').toLowerCase();
@@ -998,7 +1032,7 @@ function cochoState(){
   }
 }
 function closeScreens(){
-  ['welcome','moduleHome','cochoScreen','work','moveScreen','fornecerScreen','prodScreen','consScreen','relScreen','mapaScreen','calScreen'].forEach(function(id){var n=$(id);if(n)n.classList.add('hidden');});
+  ['welcome','moduleHome','cochoScreen','work','moveScreen','fornecerScreen','prodScreen','consScreen','relScreen','mapaScreen','calScreen','comoUsarScreen'].forEach(function(id){var n=$(id);if(n)n.classList.add('hidden');});
   if($('navbar'))$('navbar').classList.add('hidden');
   if(typeof fecharLeitorQR==='function')fecharLeitorQR();
 }
@@ -1831,6 +1865,11 @@ function openCalendarioScreen(){
   calDiaSelecionado=null;
   renderCalGrid();
 }
+function openComoUsarScreen(){
+  closeScreens();
+  $('comoUsarScreen').classList.remove('hidden');$('top').classList.remove('hidden');
+  $('farmTop').textContent=rec?(rec.fazendaNome||'Fazenda'):'App Campo';
+}
 function diaKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function renderCalGrid(){
   $('calMesTitulo').textContent=CAL_MESES[calMes]+' '+calAno;
@@ -1963,6 +2002,8 @@ $('consProduto').addEventListener('change',renderConsumoResultado);
 
 $('modRelatorios').onclick=openRelatoriosScreen;
 $('modCalendario').onclick=openCalendarioScreen;
+$('modComoUsar').onclick=openComoUsarScreen;
+$('comoUsarBack').onclick=showModuleHome;
 $('calBack').onclick=showModuleHome;
 $('calPrev').onclick=function(){calMes--;if(calMes<0){calMes=11;calAno--;}$('calDiaPanel').style.display='none';renderCalGrid();};
 $('calNext').onclick=function(){calMes++;if(calMes>11){calMes=0;calAno++;}$('calDiaPanel').style.display='none';renderCalGrid();};
