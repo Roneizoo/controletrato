@@ -388,6 +388,14 @@ table.relTable td{padding:6px 8px;border-bottom:1px solid var(--line);white-spac
           <label>Nome da praça <span style="font-weight:500;color:#7b817d">(opcional)</span></label>
           <input id="pracaNome" type="text" placeholder="Opcional: Ex. Cocho Norte">
           <div style="font-size:10px;color:#6b756f;margin-top:6px;">Código QR: <span class="mono" id="pracaCodigoPreview">PRACA-001</span></div>
+          <div style="margin-top:10px;">
+            <label style="font-size:11px;">📍 Localização <span style="font-weight:500;color:#7b817d">(opcional — deixe em branco pra usar a localização de quem estiver no local ao criar)</span></label>
+            <div style="display:flex;gap:6px;margin-top:4px;">
+              <input id="pracaLat" type="text" inputmode="decimal" placeholder="Latitude (ex: -23.4567)" style="flex:1;">
+              <input id="pracaLng" type="text" inputmode="decimal" placeholder="Longitude (ex: -51.2345)" style="flex:1;">
+            </div>
+            <div style="font-size:10px;color:#6b756f;margin-top:4px;">Dica: veja no Google Maps, clique com o botão direito no ponto exato e copie as coordenadas.</div>
+          </div>
         </div>
       </div>
 
@@ -1134,37 +1142,52 @@ function savePraca(){
   cochoState();
   var nome=$('pracaNome').value.trim();
   if(!pracaDraftSel.length){alert('Selecione pelo menos um piquete para esta praça.');return;}
+  var latTxt=$('pracaLat').value.trim().replace(',','.'),lngTxt=$('pracaLng').value.trim().replace(',','.');
+  var gpsManual=null;
+  if(latTxt||lngTxt){
+    var lat=Number(latTxt),lng=Number(lngTxt);
+    if(!latTxt||!lngTxt||isNaN(lat)||isNaN(lng)){alert('Preencha latitude E longitude corretamente (ou deixe as duas em branco).');return;}
+    gpsManual={lat:lat,lng:lng};
+  }
 
   if(pracaEditId){
     var c=rec.cochos.find(function(x){return x.id===pracaEditId;});
     if(!c)return;
     c.nome=nome;
     c.piqueteIds=pracaDraftSel.slice();
+    if(gpsManual)c.gpsRef=gpsManual;
     Object.keys(rec.piqueteCocho).forEach(function(pid){
       if(rec.piqueteCocho[pid]===pracaEditId)delete rec.piqueteCocho[pid];
     });
     pracaDraftSel.forEach(function(pid){rec.piqueteCocho[pid]=pracaEditId;});
     save();
-    pracaEditId=null;pracaDraftSel=[];$('pracaNome').value='';
+    pracaEditId=null;pracaDraftSel=[];$('pracaNome').value='';$('pracaLat').value='';$('pracaLng').value='';
     renderPracaSetup();
   }else{
     if(!pedirSenhaCriar('uma praça nova'))return;
     var numero=rec.proximoNumeroPraca;
     var id='praca_'+pad3(numero);
     var selCopy=pracaDraftSel.slice();
-    obterLocalizacao(function(loc){
+    function finalizarCriacao(gps){
       rec.cochos.push({
         id:id,numero:numero,nome:nome,codigo:'PRACA-'+pad3(numero),
         qr:'qr/praca_'+pad3(numero)+'.png', // legado, nao usado pra exibir mais - qrPath() usa QR_DATA embutido
         piqueteIds:selCopy,
-        gpsRef:loc.status==='ok'?{lat:loc.lat,lng:loc.lng}:null
+        gpsRef:gps
       });
       selCopy.forEach(function(pid){rec.piqueteCocho[pid]=id;});
       rec.proximoNumeroPraca=numero+1;
       save();
-      pracaEditId=null;pracaDraftSel=[];$('pracaNome').value='';
+      pracaEditId=null;pracaDraftSel=[];$('pracaNome').value='';$('pracaLat').value='';$('pracaLng').value='';
       renderPracaSetup();
-    });
+    }
+    if(gpsManual){
+      finalizarCriacao(gpsManual);
+    }else{
+      obterLocalizacao(function(loc){
+        finalizarCriacao(loc.status==='ok'?{lat:loc.lat,lng:loc.lng}:null);
+      });
+    }
   }
 }
 function editPraca(id){
@@ -1172,11 +1195,13 @@ function editPraca(id){
   pracaEditId=id;
   pracaDraftSel=Array.isArray(c.piqueteIds)?c.piqueteIds.slice():rec.items.filter(function(x){return rec.piqueteCocho[x.piqueteId]===id;}).map(function(x){return x.piqueteId;});
   $('pracaNome').value=c.nome||'';
+  $('pracaLat').value=c.gpsRef?c.gpsRef.lat:'';
+  $('pracaLng').value=c.gpsRef?c.gpsRef.lng:'';
   renderPracaSetup();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function cancelPracaEdit(){
-  pracaEditId=null;pracaDraftSel=[];$('pracaNome').value='';renderPracaSetup();
+  pracaEditId=null;pracaDraftSel=[];$('pracaNome').value='';$('pracaLat').value='';$('pracaLng').value='';renderPracaSetup();
 }
 
 /* Etapa 4 — Movimentar Gado */
