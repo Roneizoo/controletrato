@@ -730,6 +730,7 @@ table.relTable td{padding:6px 8px;border-bottom:1px solid var(--line);white-spac
       <div class="paddockHead"><div><div class="eyebrow">PIQUETE</div><div class="paddockName" id="pNome">—</div></div><div class="counter" id="counter">1 / 1</div></div>
       <div class="groupNote hidden" id="groupNote"></div>
       <div class="groupNote hidden" id="recorridaAnteriorNote" style="background:#EFF3F6;border-color:#2b6a8a;"></div>
+      <div class="groupNote hidden" id="cpGrupoNote" style="background:#F1EEE0;border-color:#8a5a2b;"></div>
       <div class="metrics">
         <div class="metric"><span>Área</span><b id="mArea">—</b><small>ha</small></div><div class="metric"><span>Cabeças</span><b id="mCab">—</b><small>grupo</small></div><div class="metric"><span>Peso médio</span><b id="mPeso">—</b><small>kg</small></div><div class="metric"><span>UA</span><b id="mUa">—</b><small>grupo</small></div>
       </div>
@@ -915,9 +916,22 @@ function render(){
        '</div>';
      }).join('');
  }else{$('recorridaAnteriorNote').classList.add('hidden');}
+ if(x.controlPastoParentId){
+   var irmaos=rec.items.filter(function(y){return y.controlPastoParentId===x.controlPastoParentId&&y!==x;});
+   $('cpGrupoNote').classList.remove('hidden');
+   $('cpGrupoNote').innerHTML='🔗 <b>Piquetão do Control Pasto — '+esc(x.controlPastoGrupo||'')+'</b><br>A avaliação que você der aqui (água, cocho, UA/ha sugerida, observação) vale pro grupo inteiro'+(irmaos.length?': também marca '+irmaos.map(function(y){return esc(y.piqueteNome);}).join(', '):'')+'.';
+ }else{$('cpGrupoNote').classList.add('hidden');}
  var done=rec.items.filter(function(i){return i.concluido}).length;$('progressTxt').textContent=done+' / '+rec.items.length+' concluídos';$('bar').style.width=(rec.items.length?done/rec.items.length*100:0)+'%';$('prev').disabled=idx===0;$('next').textContent=idx===rec.items.length-1?'Salvar ✓':'Salvar e próximo →';save()
 }
-function capture(){if(!rec||!rec.items.length)return;var x=rec.items[idx],s=$('sug').value.trim().replace(',','.');x.uaHaSugerida=s===''?'':Number(s);if(x.uaHaSugerida!==''&&(!isFinite(x.uaHaSugerida)||x.uaHaSugerida<0))x.uaHaSugerida='';x.observacao=$('obs').value.trim();x.concluido=$('done').checked;save()}
+function propagarGrupoControlPasto(x){
+  var chave=x.controlPastoParentId;
+  if(!chave)return;
+  rec.items.forEach(function(y){
+    if(y===x||y.controlPastoParentId!==chave)return;
+    y.agua=x.agua;y.cocho=x.cocho;y.uaHaSugerida=x.uaHaSugerida;y.observacao=x.observacao;y.concluido=x.concluido;
+  });
+}
+function capture(){if(!rec||!rec.items.length)return;var x=rec.items[idx],s=$('sug').value.trim().replace(',','.');x.uaHaSugerida=s===''?'':Number(s);if(x.uaHaSugerida!==''&&(!isFinite(x.uaHaSugerida)||x.uaHaSugerida<0))x.uaHaSugerida='';x.observacao=$('obs').value.trim();x.concluido=$('done').checked;propagarGrupoControlPasto(x);save()}
 function renderList(q){
  q=(q||'').trim().toLocaleLowerCase('pt-BR');var rows=[];
  rec.items.forEach(function(x,i){if(q && !(x.piqueteNome||'').toLocaleLowerCase('pt-BR').includes(q) && !String(i+1).includes(q))return;rows.push('<div class="listItem '+(x.concluido?'done':'pending')+'" data-i="'+i+'"><div><strong>'+(i+1)+'. '+esc(x.piqueteNome)+'</strong><small>Alvo '+fmt(x.uaHaAlvo,2)+(x.uaHaSugerida!==''?' → sugerida '+fmt(x.uaHaSugerida,2):'')+(x.agua?' · Água '+esc(x.agua):'')+(x.cocho?' · Cocho '+esc(x.cocho):'')+'</small></div><div class="status">'+(x.concluido?'✓':'○')+'</div></div>')});
@@ -1008,7 +1022,7 @@ $('file').onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new Fi
   if(recAntigo)alert('Fazenda atualizada — as praças, produtos e relatórios que já estavam neste celular foram mantidos.');
 }catch(ex){alert('Não foi possível importar: '+ex.message)}};r.readAsText(f);e.target.value=''};
 $('btnContinue').onclick=showModuleHome;$('prev').onclick=function(){capture();if(idx>0)idx--;render()};$('next').onclick=function(){capture();if(idx<rec.items.length-1)idx++;render()};$('sug').onchange=capture;$('obs').onchange=capture;$('done').onchange=function(){capture();render()};
-document.querySelectorAll('.chips').forEach(function(g){g.querySelectorAll('.chip').forEach(function(b){b.onclick=function(){var x=rec.items[idx],field=g.dataset.field;x[field]=(x[field]===b.dataset.v?'':b.dataset.v);save();render()}})});
+document.querySelectorAll('.chips').forEach(function(g){g.querySelectorAll('.chip').forEach(function(b){b.onclick=function(){var x=rec.items[idx],field=g.dataset.field;x[field]=(x[field]===b.dataset.v?'':b.dataset.v);propagarGrupoControlPasto(x);save();render()}})});
 $('btnLista').onclick=function(){openList(false)};$('btnBuscar').onclick=function(){openList(true)};$('closeList').onclick=function(){$('listPanel').classList.add('hidden')};$('search').oninput=function(){renderList(this.value)};
 $('btnExport').onclick=exportResult;$('btnPdf').onclick=printReport;
 $('btnImportarRecorridaOutro').onclick=function(){$('importRecorridaOutroFile').click();};
